@@ -1,15 +1,37 @@
-def map_medical_from_text(text):
+def normalize_text(text):
     text = text.lower()
 
-    result = {
-        "DISEASE": [],
-        "DRUG": [],
-        "SYMPTOM": []
+    replacements = {
+        "bp": "blood pressure",
+        "sugar": "diabetes",
+        "high sugar": "diabetes"
     }
 
-    diseases = ["diabetes", "hypertension", "asthma", "infection"]
-    drugs = ["insulin", "metformin", "paracetamol", "antibiotics"]
-    symptoms = ["fever", "fatigue", "pain", "cough", "dizziness"]
+    for k, v in replacements.items():
+        text = text.replace(k, v)
+
+    return text
+
+
+def map_medical_from_text(text):
+    text = normalize_text(text)
+
+    diseases = [
+        "diabetes", "hypertension", "asthma",
+        "covid", "cancer", "infection"
+    ]
+
+    drugs = [
+        "insulin", "metformin", "paracetamol",
+        "aspirin", "antibiotics"
+    ]
+
+    symptoms = [
+        "fever", "fatigue", "pain",
+        "cough", "headache", "dizziness"
+    ]
+
+    result = {"DISEASE": [], "DRUG": [], "SYMPTOM": []}
 
     for d in diseases:
         if d in text:

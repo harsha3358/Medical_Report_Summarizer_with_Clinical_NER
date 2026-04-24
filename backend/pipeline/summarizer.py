@@ -1,19 +1,22 @@
-from backend.utils.config import summarizer
-
 def generate_summary(text):
-    if len(text.split()) < 30:
-        return text
+    if not text.strip():
+        return ""
 
-    max_len = int(len(text.split()) * 0.5)
-    min_len = max(10, int(len(text.split()) * 0.2))
+    result = summarizer(
+        text,
+        max_length=60,
+        min_length=20,
+        do_sample=False,
+        repetition_penalty=2.0
+    )
 
-    try:
-        result = summarizer(
-            text,
-            max_length=max_len,
-            min_length=min_len,
-            do_sample=False
-        )
-        return result[0]['summary_text']
-    except:
-        return text
+    summary = result[0]["summary_text"]
+
+    # Remove repeated words
+    words = summary.split()
+    seen = []
+    for w in words:
+        if w not in seen:
+            seen.append(w)
+
+    return " ".join(seen)
