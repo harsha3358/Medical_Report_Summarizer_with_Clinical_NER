@@ -1,8 +1,0 @@
-fastapi
-uvicorn
-torch
-transformers
-easyocr
-pytesseract
-opencv-python
-numpy==1.26.4
