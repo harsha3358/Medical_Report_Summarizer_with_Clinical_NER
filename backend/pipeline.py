@@ -1,15 +1,33 @@
 from transformers import pipeline
 from ocr_correction import correct_text
 
-# Load summarizer (safe fallback included)
-try:
-    summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-except:
-    summarizer = None
+MODEL_NAME = "sshleifer/distilbart-cnn-12-6"
+
+_summarizer = None
+
+
+def get_summarizer():
+    global _summarizer
+    if _summarizer is None:
+        try:
+            _summarizer = pipeline("summarization", model=MODEL_NAME)
+        except:
+            _summarizer = None
+    return _summarizer
+
+
+# 🔥 Warm-up function (fixes your previous error)
+def warm_up_models():
+    model = get_summarizer()
+    if model:
+        try:
+            model("warm up text", max_length=20, min_length=5)
+        except:
+            pass
 
 
 # -------------------------------
-# ENTITY EXTRACTION (ROBUST)
+# ENTITY EXTRACTION (FAST RULES)
 # -------------------------------
 def extract_entities(text):
     t = text.lower()
@@ -21,36 +39,29 @@ def extract_entities(text):
         "treatment": []
     }
 
-    # diseases
     if "diabetes" in t or "glucose" in t:
         entities["disease"].append("diabetes")
 
-    if "cholesterol" in t or "ldl" in t:
+    if "cholesterol" in t:
         entities["disease"].append("dyslipidemia")
 
-    if "cancer" in t or "tumor" in t:
+    if "cancer" in t:
         entities["disease"].append("cancer")
 
     if "copd" in t:
         entities["disease"].append("copd")
 
-    # symptoms
     for s in ["fever", "cough", "nausea", "fatigue", "chest pain", "shortness of breath"]:
         if s in t:
             entities["symptom"].append(s)
 
-    # drugs
     for d in ["aspirin", "ibuprofen", "paracetamol", "ondansetron", "metformin", "tiotropium"]:
         if d in t:
             entities["drug"].append(d)
 
-    # treatments
     if "chemotherapy" in t:
         entities["treatment"].append("chemotherapy")
-    if "surgery" in t:
-        entities["treatment"].append("surgery")
 
-    # deduplicate
     for k in entities:
         entities[k] = list(set(entities[k]))
 
@@ -58,12 +69,25 @@ def extract_entities(text):
 
 
 # -------------------------------
-# SUMMARIZATION (SAFE)
+# FAST SUMMARY
 # -------------------------------
 def generate_summary(text):
+    words = text.split()
+
+    # ⚡ FAST PATH
+    if len(words) < 40:
+        return text.capitalize()
+
+    summarizer = get_summarizer()
     if summarizer:
         try:
-            result = summarizer(text, max_length=120, min_length=30, do_sample=False)[0]["summary_text"]
+            result = summarizer(
+                text,
+                max_length=120,
+                min_length=30,
+                do_sample=False
+            )[0]["summary_text"]
+
             sentences = list(dict.fromkeys(result.split(".")))
             return ". ".join([s.strip() for s in sentences if s.strip()])
         except:
@@ -73,31 +97,30 @@ def generate_summary(text):
 
 
 # -------------------------------
-# CONFIDENCE (FIXED)
+# CONFIDENCE
 # -------------------------------
 def confidence_score(text, entities):
-    score = 0
+    score = (
+        len(entities["disease"]) * 0.4 +
+        len(entities["drug"]) * 0.3 +
+        len(entities["symptom"]) * 0.2 +
+        len(entities["treatment"]) * 0.1
+    )
 
-    score += len(entities["disease"]) * 0.4
-    score += len(entities["drug"]) * 0.3
-    score += len(entities["symptom"]) * 0.2
-    score += len(entities["treatment"]) * 0.1
-
-    if score == 0:
-        if any(k in text for k in ["fever", "cough", "glucose", "cholesterol"]):
-            return 0.4
+    if score == 0 and any(k in text for k in ["fever", "cough", "glucose"]):
+        return 0.4
 
     return round(min(score, 1.0), 2)
 
 
 # -------------------------------
-# FINAL PIPELINE
+# MAIN PIPELINE
 # -------------------------------
 def process_text(text):
     text = correct_text(text)
 
-    summary = generate_summary(text)
     entities = extract_entities(text)
+    summary = generate_summary(text)
     confidence = confidence_score(text, entities)
 
     return {

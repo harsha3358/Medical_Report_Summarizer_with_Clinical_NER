@@ -1,9 +1,6 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, Form
 from fastapi.middleware.cors import CORSMiddleware
-from pipeline import process_text
-import pytesseract
-from PIL import Image
-import io
+from pipeline import process_text, warm_up_models
 
 app = FastAPI()
 
@@ -15,18 +12,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 🔥 Warm up model once (optional but recommended)
+@app.on_event("startup")
+async def startup_event():
+    warm_up_models()
+
+
 @app.get("/")
 def home():
-    return {"message": "Medical AI API running"}
+    return {"message": "Medical AI API (fast text version) running"}
+
 
 @app.post("/analyze")
-async def analyze(text: str = Form(None), file: UploadFile = File(None)):
+async def analyze(text: str = Form(...)):
     try:
-        if file:
-            contents = await file.read()
-            image = Image.open(io.BytesIO(contents))
-            text = pytesseract.image_to_string(image)
-
         if not text or text.strip() == "":
             return {
                 "clinical_summary": "",
