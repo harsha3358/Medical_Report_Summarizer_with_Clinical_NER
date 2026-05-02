@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: medical-report-summarizer-api
+    env: docker
+    plan: free
+    rootDir: backend
+    healthCheckPath: /

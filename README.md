@@ -1,301 +1,265 @@
 # Medical Report Summarizer with Clinical NER
 
-A FastAPI + Next.js application for analyzing clinical notes. The app accepts typed medical text or uploaded medical-report images, extracts text with OCR when needed, generates a clinical summary, and identifies simple clinical entities such as diseases, drugs, symptoms, and treatments.
+## What This Project Does
 
-This repository also includes Objective 1 experiment scripts for comparing a custom sequence-to-sequence LSTM baseline, an LSTM with attention, and transformer summarization baselines using ROUGE metrics.
+This project is a medical-report assistant. A user can paste a medical note or upload an image of a medical report. The system then reads the content, creates a shorter summary, and highlights important medical words such as symptoms, medicines, diseases, and treatments.
 
-## Features
+The goal is to make long clinical notes easier to understand at a glance.
 
-- Text input through the web chat interface.
-- Image input through upload: PNG, JPG, JPEG, BMP, TIF, and TIFF.
-- OCR preprocessing with OpenCV and Tesseract.
-- Clinical summary generation with a DistilBART summarization pipeline.
-- Rule-based clinical NER for diseases, drugs, symptoms, and treatments.
-- SQLite-backed history storage.
-- LSTM baseline and LSTM + Attention training/evaluation scripts.
-- BART evaluation and side-by-side model comparison scripts.
+## Who This Is For
 
-## Repository Structure
+This project is useful for:
 
-```text
-Medical_Report_Summarizer_with_Clinical_NER/
-  backend/
-    app.py                  FastAPI server and API routes
-    pipeline.py             Clinical summary + NER pipeline
-    ocr_utils.py            Image preprocessing for OCR
-    ocr_correction.py       OCR text normalization helpers
-    database.py             SQLite history store
-    lstm_summarization.py   LSTM and LSTM + Attention training/evaluation
-    lstm_inference.py       LSTM + Attention inference helper
-    bart_evaluation.py      BART ROUGE evaluation
-    compare_models.py       LSTM vs Attention vs BART comparison
-    requirements.txt        Python dependencies
-  frontend/
-    src/app/                Next.js app shell
-    src/components/         Chat UI, sidebar, entity chips, analytics
-    src/lib/                API client and TypeScript types
-    package.json            Frontend dependencies and scripts
-```
+- Students learning artificial intelligence and natural language processing.
+- People who want to understand how medical text summarization works.
+- Demonstrations of OCR, summarization, and clinical entity extraction.
+- Academic projects comparing traditional deep learning with transformer models.
 
-## Prerequisites
+This project is not a replacement for a doctor, hospital system, or medical diagnosis.
 
-- Python 3.10+
-- Node.js 18+
-- Tesseract OCR installed for image upload support
-- Optional: CUDA GPU for faster model training/evaluation
+## What The User Can Do
 
-On Windows, the backend automatically uses:
+The app supports two main input types:
 
-```text
-C:\Program Files\Tesseract-OCR\tesseract.exe
-```
-
-If Tesseract is installed elsewhere, add it to PATH or update `TESSERACT_EXE` in `backend/app.py`.
-
-## Setup
-
-Clone the repository:
-
-```bash
-git clone https://github.com/harsha3358/Medical_Report_Summarizer_with_Clinical_NER.git
-cd Medical_Report_Summarizer_with_Clinical_NER
-```
-
-Install backend dependencies:
-
-```bash
-cd backend
-pip install -r requirements.txt
-```
-
-Start the backend:
-
-```bash
-uvicorn app:app --host 127.0.0.1 --port 10000
-```
-
-Install frontend dependencies:
-
-```bash
-cd ../frontend
-npm install
-```
-
-For development:
-
-```bash
-npm run dev
-```
-
-For a production-style local run:
-
-```bash
-npm run build
-npm run start
-```
-
-Open:
-
-```text
-http://127.0.0.1:3000
-```
-
-The frontend talks to:
-
-```text
-http://127.0.0.1:10000
-```
-
-## API
-
-### Health Check
-
-```http
-GET /
-```
-
-Returns:
-
-```json
-{
-  "message": "Medical AI API (fast text version) running"
-}
-```
-
-### Analyze Text
-
-```http
-POST /analyze
-Content-Type: application/x-www-form-urlencoded
-
-text=Patient has fever, fatigue and is on aspirin and metformin.
-```
-
-### Analyze Image
-
-```http
-POST /analyze
-Content-Type: multipart/form-data
-
-file=<medical_report_image.png>
-```
+| Input Type | What It Means |
+| --- | --- |
+| Text | The user types or pastes a medical note into the chat box. |
+| Image | The user uploads an image of a report, and the system tries to read the text from the image. |
 
 Supported image formats:
 
 ```text
-.png, .jpg, .jpeg, .bmp, .tif, .tiff
+PNG, JPG, JPEG, BMP, TIF, TIFF
 ```
 
-### Response Format
+## What The App Gives Back
 
-```json
-{
-  "clinical_summary": "Patient has fever fatigue and is on aspirin and metformin.",
-  "entities": {
-    "disease": [],
-    "drug": ["metformin", "aspirin"],
-    "symptom": ["fever", "fatigue"],
-    "treatment": []
-  },
-  "confidence": 1.0,
-  "disclaimer": "AI-generated summary. Not a medical diagnosis."
-}
-```
+After the user submits text or an image, the app returns:
 
-Errors are returned in the same shape with an `error` field:
-
-```json
-{
-  "clinical_summary": "",
-  "entities": {
-    "disease": [],
-    "drug": [],
-    "symptom": [],
-    "treatment": []
-  },
-  "confidence": 0,
-  "error": "No readable text provided",
-  "disclaimer": "AI-generated summary. Not a medical diagnosis."
-}
-```
-
-### History
-
-```http
-GET /history
-DELETE /history/clear
-```
-
-## Attention Mechanism
-
-`backend/lstm_summarization.py` includes two sequence-to-sequence models:
-
-- LSTM without attention
-- LSTM with dot-product attention over encoder time steps
-
-The attention decoder now receives padded encoder outputs plus a source mask, so it attends only over valid input tokens instead of padded positions. The same attention path is used for:
-
-- training
-- summary generation
-- ROUGE evaluation
-- `lstm_inference.py`
-
-Run the LSTM experiments:
-
-```bash
-cd backend
-python lstm_summarization.py
-```
-
-Run the full comparison:
-
-```bash
-python compare_models.py
-```
-
-These scripts download CNN/DailyMail from Hugging Face when run.
-
-## Accuracy and Evaluation
-
-Summarization quality is evaluated with ROUGE:
-
-- ROUGE-1
-- ROUGE-2
-- ROUGE-L
-
-The project includes:
-
-```bash
-python lstm_summarization.py
-python bart_evaluation.py
-python compare_models.py
-```
-
-Expected trend:
-
-| Model | Expected Behavior |
+| Output | Meaning |
 | --- | --- |
-| LSTM without attention | Baseline sequence-to-sequence model |
-| LSTM + Attention | Should improve over the plain LSTM by focusing on relevant source tokens |
-| BART-Large-CNN | Strong transformer summarization baseline |
-| DistilBART pipeline | Fast app-time summary generation |
+| Clinical summary | A shorter version of the medical note. |
+| Diseases | Conditions found in the text, such as diabetes. |
+| Drugs | Medicines found in the text, such as aspirin or metformin. |
+| Symptoms | Symptoms found in the text, such as fever or cough. |
+| Treatments | Treatments found in the text, such as chemotherapy. |
+| Confidence score | A simple score showing how much useful medical information was found. |
 
-Note: exact ROUGE scores depend on machine, dataset cache, training time, random seed, and GPU availability.
-
-## Verified Local Checks
-
-The following checks were run locally:
-
-- Frontend build succeeds with `npm run build`.
-- Frontend serves successfully at `http://127.0.0.1:3000`.
-- Backend health route responds at `http://127.0.0.1:10000`.
-- Text input returns summary and entities.
-- Empty input returns a friendly error.
-- Unsupported file upload returns a friendly file-type error.
-- PNG image upload is OCR'd and analyzed.
-- LSTM + Attention shape test confirms encoder outputs, masks, decoder logits, and generation path work together.
-
-Example text test:
+Example input:
 
 ```text
 Diabetes patient has fatigue and uses metformin.
 ```
 
-Expected extracted entities:
-
-```json
-{
-  "disease": ["diabetes"],
-  "drug": ["metformin"],
-  "symptom": ["fatigue"],
-  "treatment": []
-}
-```
-
-Example image OCR test:
+Example output:
 
 ```text
-Patient has fever cough and takes aspirin.
+Summary: Diabetes patient has fatigue and uses metformin.
+Disease: diabetes
+Drug: metformin
+Symptom: fatigue
 ```
 
-Expected extracted entities:
+## How The Project Works In Simple Words
 
-```json
-{
-  "disease": [],
-  "drug": ["aspirin"],
-  "symptom": ["cough", "fever"],
-  "treatment": []
-}
+The project has two parts:
+
+| Part | Job |
+| --- | --- |
+| Frontend | The screen the user sees and interacts with. |
+| Backend | The system that reads, summarizes, and analyzes the report. |
+
+When the user submits a note:
+
+1. The frontend sends the note to the backend.
+2. If the input is an image, the backend first extracts text from the image.
+3. The backend cleans the text.
+4. The backend creates a summary.
+5. The backend finds medical entities such as symptoms and medicines.
+6. The frontend shows the final result in a readable chat view.
+
+## Main Technologies Used
+
+| Technology | Purpose |
+| --- | --- |
+| Next.js | Builds the user interface. |
+| FastAPI | Runs the backend API. |
+| Transformers | Generates summaries using a pretrained model. |
+| Tesseract OCR | Reads text from uploaded images. |
+| OpenCV | Cleans images before OCR. |
+| SQLite | Stores analysis history. |
+| PyTorch | Supports the LSTM and attention model experiments. |
+
+## AI And Machine Learning Work
+
+This project includes two types of summarization work.
+
+### 1. App-Time Summarization
+
+The live app uses a transformer summarization model:
+
+```text
+sshleifer/distilbart-cnn-12-6
 ```
 
-## Important Notes
+This model is used because it is faster and lighter than very large transformer models, which makes it more practical for a working web app.
 
-- This app is for educational and research use.
-- The generated output is not a diagnosis.
-- Rule-based NER is intentionally simple and should be expanded with a clinical NER model for production accuracy.
-- Image OCR accuracy depends on image quality, resolution, handwriting/printing style, and Tesseract installation.
+### 2. Academic Model Comparison
+
+The project also includes experiment scripts to compare:
+
+| Model | Purpose |
+| --- | --- |
+| LSTM without attention | A basic deep learning baseline. |
+| LSTM with attention | An improved LSTM that learns which words to focus on. |
+| BART-Large-CNN | A strong transformer comparison model. |
+
+## Attention Mechanism Explained Simply
+
+An attention mechanism helps the model decide which words in the original report are most important while generating the summary.
+
+Without attention, the LSTM has to compress the whole input into a small internal memory. That can make it forget useful details.
+
+With attention, the model can look back at different parts of the original text while writing each word of the summary. This usually helps it create better summaries.
+
+In this project, the LSTM with attention now uses:
+
+- Encoder outputs from every input word.
+- A mask so the model ignores empty padded positions.
+- The same attention path during training, evaluation, and inference.
+
+## Accuracy And Testing
+
+For summarization accuracy, the project uses ROUGE scores.
+
+ROUGE compares a generated summary with a reference summary and checks how many important words and phrases overlap.
+
+The project supports:
+
+| Metric | Meaning |
+| --- | --- |
+| ROUGE-1 | Word-level overlap. |
+| ROUGE-2 | Two-word phrase overlap. |
+| ROUGE-L | Longest matching sequence of words. |
+
+The following checks were completed locally:
+
+- The frontend builds successfully.
+- The backend starts successfully.
+- Text input works.
+- Image OCR input works.
+- Empty input gives a friendly error.
+- Unsupported file uploads give a friendly error.
+- The attention model path was tested with a small shape test.
+- The frontend and backend response formats now match.
+
+## Deployment
+
+This repository now includes files that make cloud deployment easier:
+
+| File | Purpose |
+| --- | --- |
+| `frontend/vercel.json` | Helps deploy the frontend on Vercel. |
+| `render.yaml` | Helps create the backend service on Render. |
+| `backend/Dockerfile` | Builds the backend with Tesseract OCR support. |
+
+Suggested deployment plan:
+
+| Service | What To Deploy |
+| --- | --- |
+| Vercel | Deploy the `frontend` folder. |
+| Render | Deploy the backend using `render.yaml` and `backend/Dockerfile`. |
+
+After Render gives a backend URL, add it in Vercel as:
+
+```text
+NEXT_PUBLIC_API_URL=<your Render backend URL>
+```
+
+Then redeploy the Vercel frontend.
+
+Live deployment links should be added here after both services are created:
+
+| Service | Link |
+| --- | --- |
+| Frontend | Add Vercel link here |
+| Backend | Add Render link here |
+
+## Project Folder Guide
+
+```text
+backend/
+  app.py
+  pipeline.py
+  ocr_utils.py
+  ocr_correction.py
+  database.py
+  lstm_summarization.py
+  lstm_inference.py
+  bart_evaluation.py
+  compare_models.py
+  requirements.txt
+  Dockerfile
+
+frontend/
+  src/
+  package.json
+  vercel.json
+
+render.yaml
+README.md
+```
+
+## How To Run The Project Locally
+
+This section is for developers who want to run the project on their own computer.
+
+Start the backend:
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn app:app --host 127.0.0.1 --port 10000
+```
+
+Start the frontend:
+
+```bash
+cd frontend
+npm install
+npm run build
+npm run start
+```
+
+The frontend runs on port `3000`, and the backend runs on port `10000`.
+
+## Important Safety Note
+
+This project is for learning and demonstration only.
+
+The summary and extracted medical terms are AI-generated. They may be incomplete or wrong. Do not use this project for real medical decisions.
+
+Always consult a qualified medical professional for diagnosis, treatment, or urgent health concerns.
+
+## Limitations
+
+- OCR may fail if the image is blurry, handwritten, tilted, or low resolution.
+- The clinical entity extraction is rule-based and limited.
+- The system may miss medical terms that are not included in its rules.
+- Summaries should be reviewed by a human.
+- Full model training can take time and may need a good GPU.
+
+## Future Improvements
+
+Useful improvements would include:
+
+- A stronger medical NER model.
+- Better support for PDF reports.
+- Better handling of handwritten reports.
+- More clinical terms in the entity extraction system.
+- Full cloud deployment with final Vercel and Render links.
+- Authentication and privacy controls for real-world use.
 
 ## License
 
-MIT License for academic and research use.
+MIT License.
