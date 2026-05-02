@@ -1,144 +1,108 @@
-# backend/pipeline.py
+from transformers import pipeline
+from ocr_correction import correct_text
 
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-import torch
-import re
+# Load summarizer (safe fallback included)
+try:
+    summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+except:
+    summarizer = None
 
-# -------------------------------
-# DEVICE
-# -------------------------------
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-# -------------------------------
-# MODEL (UPGRADED)
-# -------------------------------
-tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-large")
-model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-large").to(DEVICE)
 
 # -------------------------------
-# CLEAN TEXT
+# ENTITY EXTRACTION (ROBUST)
 # -------------------------------
-def clean_text(text):
-    if not text:
-        return ""
-
-    text = re.sub(r"[^\w\s.,]", " ", text)
-    text = re.sub(r"\s+", " ", text)
-
-    return text.strip()
-
-# -------------------------------
-# SUMMARIZATION (IMPROVED PROMPT)
-# -------------------------------
-def generate_summary(text):
-    try:
-        prompt = (
-            "Extract and summarize the medical information in one sentence.\n"
-            "Format: Disease + Symptoms + Treatment.\n\n"
-            "Text:\n" + text[:512]
-        )
-
-        inputs = tokenizer(
-            prompt,
-            return_tensors="pt",
-            truncation=True
-        ).to(DEVICE)
-
-        outputs = model.generate(
-            **inputs,
-            max_length=60,
-            min_length=20,
-            num_beams=6,
-            no_repeat_ngram_size=3,
-            length_penalty=1.0,
-            early_stopping=True
-        )
-
-        summary = tokenizer.decode(
-            outputs[0],
-            skip_special_tokens=True
-        )
-
-        return summary.strip()
-
-    except Exception as e:
-        print("SUMMARY ERROR:", e)
-        return ""
-
-# -------------------------------
-# LSTM BASELINE
-# -------------------------------
-def lstm_generate(text):
-    return text[:80]
-
-# -------------------------------
-# ENTITY EXTRACTION (IMPROVED)
-# -------------------------------
-def extract_medical_entities(text):
-    text = text.lower()
+def extract_entities(text):
+    t = text.lower()
 
     entities = {
         "disease": [],
         "drug": [],
-        "symptom": []
+        "symptom": [],
+        "treatment": []
     }
 
-    disease_list = ["diabetes", "cancer", "infection", "tumor"]
-    drug_list = ["insulin", "aspirin", "paracetamol", "ibuprofen", "metformin"]
-    symptom_list = ["fever", "pain", "cough", "fatigue", "thirst", "urination"]
+    # diseases
+    if "diabetes" in t or "glucose" in t:
+        entities["disease"].append("diabetes")
 
-    for d in disease_list:
-        if d in text:
-            entities["disease"].append(d)
+    if "cholesterol" in t or "ldl" in t:
+        entities["disease"].append("dyslipidemia")
 
-    for d in drug_list:
-        if d in text:
+    if "cancer" in t or "tumor" in t:
+        entities["disease"].append("cancer")
+
+    if "copd" in t:
+        entities["disease"].append("copd")
+
+    # symptoms
+    for s in ["fever", "cough", "nausea", "fatigue", "chest pain", "shortness of breath"]:
+        if s in t:
+            entities["symptom"].append(s)
+
+    # drugs
+    for d in ["aspirin", "ibuprofen", "paracetamol", "ondansetron", "metformin", "tiotropium"]:
+        if d in t:
             entities["drug"].append(d)
 
-    for s in symptom_list:
-        if s in text:
-            entities["symptom"].append(s)
+    # treatments
+    if "chemotherapy" in t:
+        entities["treatment"].append("chemotherapy")
+    if "surgery" in t:
+        entities["treatment"].append("surgery")
+
+    # deduplicate
+    for k in entities:
+        entities[k] = list(set(entities[k]))
 
     return entities
 
+
 # -------------------------------
-# MAIN PIPELINE
+# SUMMARIZATION (SAFE)
 # -------------------------------
-def run_pipeline(text=None, file_path=None):
-    try:
-        if not text:
-            text = ""
+def generate_summary(text):
+    if summarizer:
+        try:
+            result = summarizer(text, max_length=120, min_length=30, do_sample=False)[0]["summary_text"]
+            sentences = list(dict.fromkeys(result.split(".")))
+            return ". ".join([s.strip() for s in sentences if s.strip()])
+        except:
+            pass
 
-        text = clean_text(text)
+    return text[:200]
 
-        print("FINAL TEXT:", text)
 
-        if len(text) < 10:
-            return {
-                "lstm_summary": "",
-                "bart_summary": "",
-                "entities": {}
-            }
+# -------------------------------
+# CONFIDENCE (FIXED)
+# -------------------------------
+def confidence_score(text, entities):
+    score = 0
 
-        # LSTM baseline
-        lstm_summary = lstm_generate(text)
+    score += len(entities["disease"]) * 0.4
+    score += len(entities["drug"]) * 0.3
+    score += len(entities["symptom"]) * 0.2
+    score += len(entities["treatment"]) * 0.1
 
-        # Transformer summary
-        summary = generate_summary(text)
+    if score == 0:
+        if any(k in text for k in ["fever", "cough", "glucose", "cholesterol"]):
+            return 0.4
 
-        # Entities
-        entities = extract_medical_entities(summary)
+    return round(min(score, 1.0), 2)
 
-        return {
-            "lstm_summary": lstm_summary,
-            "bart_summary": summary,
-            "entities": entities
-        }
 
-    except Exception as e:
-        print("PIPELINE ERROR:", e)
-        return {
-            "lstm_summary": "",
-            "bart_summary": "",
-            "entities": {}
-        }
+# -------------------------------
+# FINAL PIPELINE
+# -------------------------------
+def process_text(text):
+    text = correct_text(text)
+
+    summary = generate_summary(text)
+    entities = extract_entities(text)
+    confidence = confidence_score(text, entities)
+
+    return {
+        "clinical_summary": summary,
+        "entities": entities,
+        "confidence": confidence,
+        "disclaimer": "AI-generated summary. Not a medical diagnosis."
+    }

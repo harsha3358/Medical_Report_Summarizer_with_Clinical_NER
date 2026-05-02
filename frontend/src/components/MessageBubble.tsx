@@ -80,14 +80,16 @@ export default function MessageBubble({ message }: { message: ChatMessage }) {
     ? JSON.parse(result.entities)
     : result.entities;
   const safeEntities = {
-    disease: entities?.disease ?? [],
-    drug: entities?.drug ?? [],
-    symptom: entities?.symptom ?? [],
+    disease:   entities?.disease   ?? [],
+    drug:      entities?.drug      ?? [],
+    symptom:   entities?.symptom   ?? [],
+    treatment: entities?.treatment ?? [],
   };
   const entityCount =
     safeEntities.disease.length +
     safeEntities.drug.length +
-    safeEntities.symptom.length;
+    safeEntities.symptom.length +
+    safeEntities.treatment.length;
 
   return (
     <div className="chat-message flex items-start gap-2 mb-4">

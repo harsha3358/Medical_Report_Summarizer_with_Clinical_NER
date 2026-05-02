@@ -1,7 +1,8 @@
 export interface Entities {
-  disease: string[];
-  drug: string[];
-  symptom: string[];
+  disease:   string[];
+  drug:      string[];
+  symptom:   string[];
+  treatment: string[];   // added — NLP Objective requires TREATMENT extraction
 }
 
 export interface AnalyzeResponse {

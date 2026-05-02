@@ -1,64 +1,48 @@
-# backend/app.py
-
-from fastapi import FastAPI, Form, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-import shutil
-import os
+from pipeline import process_text
+import pytesseract
+from PIL import Image
+import io
 
-from pipeline import run_pipeline
+app = FastAPI()
 
-app = FastAPI(title="Medical Report Summarizer API")
-
-# -------------------------------
-# CORS (for frontend connection)
-# -------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # change to frontend URL in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# -------------------------------
-# ROOT CHECK
-# -------------------------------
 @app.get("/")
-def root():
-    return {"status": "Backend Running"}
+def home():
+    return {"message": "Medical AI API running"}
 
-# -------------------------------
-# MAIN ANALYZE API
-# -------------------------------
 @app.post("/analyze")
-async def analyze(
-    text: str = Form(None),
-    file: UploadFile = File(None)
-):
+async def analyze(text: str = Form(None), file: UploadFile = File(None)):
     try:
-        # If file is uploaded
         if file:
-            temp_path = f"temp_{file.filename}"
+            contents = await file.read()
+            image = Image.open(io.BytesIO(contents))
+            text = pytesseract.image_to_string(image)
 
-            with open(temp_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
+        if not text or text.strip() == "":
+            return {
+                "clinical_summary": "",
+                "entities": {},
+                "confidence": 0,
+                "error": "No input provided",
+                "disclaimer": "AI-generated summary. Not a medical diagnosis."
+            }
 
-            result = run_pipeline(file_path=temp_path)
-
-            # clean up temp file
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-
-        # If text is provided
-        else:
-            result = run_pipeline(text=text)
-
-        return result
+        return process_text(text)
 
     except Exception as e:
-        print("API ERROR:", e)
         return {
-            "lstm_summary": "",
-            "bart_summary": "",
-            "entities": {}
+            "clinical_summary": "",
+            "entities": {},
+            "confidence": 0,
+            "error": str(e),
+            "disclaimer": "AI-generated summary. Not a medical diagnosis."
         }

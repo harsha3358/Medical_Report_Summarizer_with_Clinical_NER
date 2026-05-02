@@ -159,35 +159,63 @@ def generate_summary(encoder, decoder, text):
     return " ".join(result)
 
 # -------------------------------
-# EVALUATION
+# EVALUATION — ROUGE-1, ROUGE-2, ROUGE-L
 # -------------------------------
-def evaluate(encoder, decoder):
+def evaluate(encoder, decoder, num_samples=100):
     scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=True)
 
-    scores = []
+    rouge1_scores, rouge2_scores, rougeL_scores = [], [], []
 
-    for i in range(100):
+    for i in range(min(num_samples, len(texts))):
         pred = generate_summary(encoder, decoder, texts[i])
         ref = summaries[i]
 
         score = scorer.score(ref, pred)
-        scores.append(score["rougeL"].fmeasure)
+        rouge1_scores.append(score["rouge1"].fmeasure)
+        rouge2_scores.append(score["rouge2"].fmeasure)
+        rougeL_scores.append(score["rougeL"].fmeasure)
 
-    return sum(scores) / len(scores)
+    return {
+        "rouge1": sum(rouge1_scores) / len(rouge1_scores),
+        "rouge2": sum(rouge2_scores) / len(rouge2_scores),
+        "rougeL": sum(rougeL_scores) / len(rougeL_scores),
+    }
 
 # -------------------------------
 # RUN EXPERIMENT
 # -------------------------------
-print("Training LSTM...")
-enc1, dec1 = train_model(use_attention=False)
+if __name__ == "__main__":
+    print("Training LSTM (no attention)...")
+    enc1, dec1 = train_model(use_attention=False)
 
-print("Training LSTM + Attention...")
-enc2, dec2 = train_model(use_attention=True)
+    print("Training LSTM + Attention...")
+    enc2, dec2 = train_model(use_attention=True)
 
-print("Evaluating...")
-score1 = evaluate(enc1, dec1)
-score2 = evaluate(enc2, dec2)
+    print("Evaluating LSTM (no attention)...")
+    scores1 = evaluate(enc1, dec1)
 
-print("\nRESULTS:")
-print(f"LSTM ROUGE-L: {score1:.3f}")
-print(f"LSTM+Attention ROUGE-L: {score2:.3f}")
+    print("Evaluating LSTM + Attention...")
+    scores2 = evaluate(enc2, dec2)
+
+    print("\n" + "="*55)
+    print(f"{'Model':<25} {'ROUGE-1':>8} {'ROUGE-2':>8} {'ROUGE-L':>8}")
+    print("-"*55)
+    print(
+        f"{'LSTM (no attention)':<25}"
+        f" {scores1['rouge1']:>8.3f}"
+        f" {scores1['rouge2']:>8.3f}"
+        f" {scores1['rougeL']:>8.3f}"
+    )
+    print(
+        f"{'LSTM + Attention':<25}"
+        f" {scores2['rouge1']:>8.3f}"
+        f" {scores2['rouge2']:>8.3f}"
+        f" {scores2['rougeL']:>8.3f}"
+    )
+    print("="*55)
+
+    # Optionally save trained weights for use in pipeline.py
+    import torch
+    torch.save(enc2.state_dict(), "encoder.pt")
+    torch.save(dec2.state_dict(), "decoder.pt")
+    print("\nSaved LSTM+Attention weights → encoder.pt, decoder.pt")

@@ -49,12 +49,14 @@ export default function AnalyticsPanel({
   const entityCount =
     result.entities.disease.length +
     result.entities.drug.length +
-    result.entities.symptom.length;
+    result.entities.symptom.length +
+    (result.entities.treatment?.length ?? 0);
 
   const pieData = [
-    { name: "Disease", value: result.entities.disease.length },
-    { name: "Drug", value: result.entities.drug.length },
-    { name: "Symptom", value: result.entities.symptom.length },
+    { name: "Disease",   value: result.entities.disease.length },
+    { name: "Drug",      value: result.entities.drug.length },
+    { name: "Symptom",   value: result.entities.symptom.length },
+    { name: "Treatment", value: result.entities.treatment?.length ?? 0 },
   ].filter((d) => d.value > 0);
 
   const barData = [
