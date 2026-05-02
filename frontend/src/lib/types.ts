@@ -6,9 +6,12 @@ export interface Entities {
 }
 
 export interface AnalyzeResponse {
-  bart_summary: string;
-  lstm_summary: string;
+  clinical_summary: string;
+  lstm_summary?: string;
   entities: Entities;
+  confidence: number;
+  disclaimer: string;
+  error?: string;
 }
 
 export interface HistoryItem {

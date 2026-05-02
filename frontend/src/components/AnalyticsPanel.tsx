@@ -43,7 +43,7 @@ export default function AnalyticsPanel({
   inputText: string;
 }) {
   const inputLen = inputText.length;
-  const summaryLen = result.bart_summary.length;
+  const summaryLen = result.clinical_summary.length;
   const compressionRatio =
     inputLen > 0 ? ((1 - summaryLen / inputLen) * 100).toFixed(0) : "0";
   const entityCount =
@@ -60,8 +60,8 @@ export default function AnalyticsPanel({
   ].filter((d) => d.value > 0);
 
   const barData = [
-    { name: "BART", length: summaryLen, fill: "#4f8ef7" },
-    { name: "LSTM", length: result.lstm_summary.length, fill: "#a78bfa" },
+    { name: "Summary", length: summaryLen, fill: "#4f8ef7" },
+    { name: "LSTM", length: result.lstm_summary?.length ?? 0, fill: "#a78bfa" },
   ];
 
   return (

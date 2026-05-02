@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence
+from torch.nn.utils.rnn import pad_packed_sequence, pad_sequence, pack_padded_sequence
 from datasets import load_dataset
 from rouge_score import rouge_scorer
 from collections import Counter
@@ -63,16 +63,18 @@ class Encoder(nn.Module):
     def forward(self, x, lengths):
         x = self.embedding(x)
         packed = pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
-        outputs, (h, c) = self.lstm(packed)
+        packed_outputs, (h, c) = self.lstm(packed)
+        outputs, _ = pad_packed_sequence(packed_outputs, batch_first=True)
         return outputs, (h, c)
 
 class Attention(nn.Module):
     def __init__(self, hid):
         super().__init__()
-        self.attn = nn.Linear(hid * 2, hid)
 
-    def forward(self, hidden, encoder_outputs):
+    def forward(self, hidden, encoder_outputs, src_mask=None):
         scores = torch.bmm(encoder_outputs, hidden.unsqueeze(2)).squeeze(2)
+        if src_mask is not None:
+            scores = scores.masked_fill(~src_mask, -1e9)
         weights = torch.softmax(scores, dim=1)
         context = torch.bmm(weights.unsqueeze(1), encoder_outputs).squeeze(1)
         return context
@@ -87,15 +89,24 @@ class Decoder(nn.Module):
         if use_attention:
             self.attn = Attention(hid)
 
-    def forward(self, x, hidden, encoder_outputs=None):
+    def forward(self, x, hidden, encoder_outputs=None, src_mask=None):
         x = self.embedding(x).unsqueeze(1)
         out, hidden = self.lstm(x, hidden)
 
         if self.use_attention:
-            context = self.attn(out.squeeze(1), encoder_outputs.data)
+            if encoder_outputs is None:
+                raise ValueError("encoder_outputs are required when attention is enabled")
+            context = self.attn(out.squeeze(1), encoder_outputs, src_mask)
             out = out.squeeze(1) + context
+        else:
+            out = out.squeeze(1)
 
-        return self.fc(out.squeeze(1)), hidden
+        return self.fc(out), hidden
+
+def make_src_mask(src, lengths):
+    max_len = src.size(1)
+    lens = torch.tensor(lengths, device=src.device).unsqueeze(1)
+    return torch.arange(max_len, device=src.device).unsqueeze(0) < lens
 
 # -------------------------------
 # TRAIN FUNCTION
@@ -111,13 +122,14 @@ def train_model(use_attention=False, epochs=2):
         for src, tgt, lens in loader:
             src, tgt = src.to(DEVICE), tgt.to(DEVICE)
 
-            _, hidden = encoder(src, lens)
+            encoder_outputs, hidden = encoder(src, lens)
+            src_mask = make_src_mask(src, lens)
 
             loss = 0
             input_tok = tgt[:, 0]
 
             for t in range(1, tgt.size(1)):
-                output, hidden = decoder(input_tok, hidden)
+                output, hidden = decoder(input_tok, hidden, encoder_outputs, src_mask)
                 loss += loss_fn(output, tgt[:, t])
 
                 teacher = random.random() < 0.5
@@ -140,13 +152,15 @@ def generate_summary(encoder, decoder, text):
     decoder.eval()
 
     src = encode(text).unsqueeze(0).to(DEVICE)
-    _, hidden = encoder(src, [len(src[0])])
+    lengths = [len(src[0])]
+    encoder_outputs, hidden = encoder(src, lengths)
+    src_mask = make_src_mask(src, lengths)
 
     input_tok = torch.tensor([1]).to(DEVICE)
     result = []
 
     for _ in range(30):
-        out, hidden = decoder(input_tok, hidden)
+        out, hidden = decoder(input_tok, hidden, encoder_outputs, src_mask)
         pred = out.argmax(1)
         word = idx2word.get(pred.item(), "")
 

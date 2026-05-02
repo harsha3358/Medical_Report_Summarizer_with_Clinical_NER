@@ -69,9 +69,9 @@ export default function Home() {
   };
 
   const handleHistorySelect = (item: HistoryItem) => {
-    let parsedEntities = { disease: [], drug: [], symptom: [] };
+    let parsedEntities = { disease: [], drug: [], symptom: [], treatment: [] };
     try {
-      parsedEntities = JSON.parse(item.entities);
+      parsedEntities = { ...parsedEntities, ...JSON.parse(item.entities) };
     } catch {}
 
     const userMsg: ChatMessage = {
@@ -85,9 +85,10 @@ export default function Home() {
       role: "assistant",
       content: item.input_text,
       result: {
-        bart_summary: item.summary,
-        lstm_summary: "",
+        clinical_summary: item.summary,
         entities: parsedEntities,
+        confidence: 0,
+        disclaimer: "AI-generated summary. Not a medical diagnosis.",
       },
       timestamp: new Date(item.created_at),
     };
@@ -141,7 +142,7 @@ export default function Home() {
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-100">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-[10px] font-medium text-emerald-600">
-                flan-t5-large
+                distilbart-cnn
               </span>
             </div>
           </div>

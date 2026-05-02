@@ -90,6 +90,7 @@ export default function MessageBubble({ message }: { message: ChatMessage }) {
     safeEntities.drug.length +
     safeEntities.symptom.length +
     safeEntities.treatment.length;
+  const summary = result.clinical_summary || "";
 
   return (
     <div className="chat-message flex items-start gap-2 mb-4">
@@ -107,7 +108,7 @@ export default function MessageBubble({ message }: { message: ChatMessage }) {
             </span>
             <button
               onClick={() =>
-                downloadText(result.bart_summary, "summary.txt")
+                downloadText(summary, "summary.txt")
               }
               className="text-slate-400 hover:text-blue-500 transition-colors"
               title="Download summary"
@@ -116,10 +117,15 @@ export default function MessageBubble({ message }: { message: ChatMessage }) {
             </button>
           </div>
           <p className="text-sm text-slate-700 leading-relaxed">
-            {result.bart_summary || (
+            {summary || (
               <span className="italic text-slate-400">No summary generated.</span>
             )}
           </p>
+          {result.error && (
+            <p className="text-xs text-rose-500 leading-relaxed mt-2">
+              {result.error}
+            </p>
+          )}
         </div>
 
         {/* LSTM baseline — collapsible */}

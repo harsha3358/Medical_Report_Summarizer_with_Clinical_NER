@@ -1,140 +1,301 @@
-# 🏥 Medical Report Summarizer with Clinical NER
+# Medical Report Summarizer with Clinical NER
 
-A production-grade AI system for **medical text summarization** and **clinical named entity recognition (NER)**, featuring a FastAPI backend and a modern Next.js chat interface.
+A FastAPI + Next.js application for analyzing clinical notes. The app accepts typed medical text or uploaded medical-report images, extracts text with OCR when needed, generates a clinical summary, and identifies simple clinical entities such as diseases, drugs, symptoms, and treatments.
 
----
+This repository also includes Objective 1 experiment scripts for comparing a custom sequence-to-sequence LSTM baseline, an LSTM with attention, and transformer summarization baselines using ROUGE metrics.
 
-## 📋 Project Overview
+## Features
 
-| Objective | Description |
-|-----------|-------------|
-| **Objective 1** | Medical report summarization — comparing LSTM (baseline) vs. Flan-T5-Large (transformer) using ROUGE metrics |
-| **Objective 2** | Clinical Named Entity Recognition — extracting diseases, drugs, and symptoms from medical text |
+- Text input through the web chat interface.
+- Image input through upload: PNG, JPG, JPEG, BMP, TIF, and TIFF.
+- OCR preprocessing with OpenCV and Tesseract.
+- Clinical summary generation with a DistilBART summarization pipeline.
+- Rule-based clinical NER for diseases, drugs, symptoms, and treatments.
+- SQLite-backed history storage.
+- LSTM baseline and LSTM + Attention training/evaluation scripts.
+- BART evaluation and side-by-side model comparison scripts.
 
----
+## Repository Structure
 
-## 📂 Repository Structure
-
-```
+```text
 Medical_Report_Summarizer_with_Clinical_NER/
-├── backend/
-│   ├── lstm_summarization.py   # Objective 1 — LSTM & LSTM+Attention training + evaluation
-│   ├── bart_evaluation.py      # Objective 1 — BART/Flan-T5 evaluation
-│   ├── compare_models.py       # Objective 1 — Side-by-side model comparison script
-│   ├── pipeline.py             # Objective 2 — Clinical NER + Flan-T5 summarization pipeline
-│   ├── lstm_inference.py       # LSTM inference helper
-│   ├── app.py                  # FastAPI server (REST API)
-│   ├── database.py             # SQLite history store
-│   ├── ocr_utils.py            # Image preprocessing utility
-│   └── requirements.txt        # Python dependencies
-└── frontend/
-    ├── src/
-    │   ├── app/                # Next.js pages (page.tsx, layout.tsx, globals.css)
-    │   ├── components/         # UI components (ChatWindow, Sidebar, EntityChips, etc.)
-    │   └── lib/                # API client + TypeScript types
-    └── package.json
+  backend/
+    app.py                  FastAPI server and API routes
+    pipeline.py             Clinical summary + NER pipeline
+    ocr_utils.py            Image preprocessing for OCR
+    ocr_correction.py       OCR text normalization helpers
+    database.py             SQLite history store
+    lstm_summarization.py   LSTM and LSTM + Attention training/evaluation
+    lstm_inference.py       LSTM + Attention inference helper
+    bart_evaluation.py      BART ROUGE evaluation
+    compare_models.py       LSTM vs Attention vs BART comparison
+    requirements.txt        Python dependencies
+  frontend/
+    src/app/                Next.js app shell
+    src/components/         Chat UI, sidebar, entity chips, analytics
+    src/lib/                API client and TypeScript types
+    package.json            Frontend dependencies and scripts
 ```
 
----
+## Prerequisites
 
-## 📦 Dataset
-
-**Dataset used:** [CNN / DailyMail (3.0.0)](https://huggingface.co/datasets/cnn_dailymail)
-
-- **No manual download required** — the dataset is fetched automatically via 🤗 HuggingFace `datasets` when you run the scripts.
-- Training subset: `train[:5000]` articles (Objective 1 — LSTM)
-- Evaluation subset: `test[:500]` articles (Objective 1 — BART)
-- Dataset size on disk: ~1.5 GB (well under 500 MB committed — streamed, not committed)
-
-```python
-# Automatic download (handled inside scripts):
-from datasets import load_dataset
-dataset = load_dataset("cnn_dailymail", "3.0.0", split="train[:5000]")
-```
-
----
-
-## 🚀 Setup & Reproducibility
-
-### Prerequisites
 - Python 3.10+
 - Node.js 18+
-- (Optional) CUDA GPU for faster training
+- Tesseract OCR installed for image upload support
+- Optional: CUDA GPU for faster model training/evaluation
 
-### 1. Clone the repo
+On Windows, the backend automatically uses:
+
+```text
+C:\Program Files\Tesseract-OCR\tesseract.exe
+```
+
+If Tesseract is installed elsewhere, add it to PATH or update `TESSERACT_EXE` in `backend/app.py`.
+
+## Setup
+
+Clone the repository:
+
 ```bash
 git clone https://github.com/harsha3358/Medical_Report_Summarizer_with_Clinical_NER.git
 cd Medical_Report_Summarizer_with_Clinical_NER
 ```
 
-### 2. Install Python dependencies
+Install backend dependencies:
+
 ```bash
 cd backend
 pip install -r requirements.txt
 ```
 
-### 3. Run Objective 1 — LSTM vs BART Summarization
+Start the backend:
+
 ```bash
-# Train LSTM & LSTM+Attention, then evaluate both
-python lstm_summarization.py
-
-# Evaluate BART (facebook/bart-large-cnn)
-python bart_evaluation.py
-
-# Full side-by-side comparison table
-python compare_models.py
+uvicorn app:app --host 127.0.0.1 --port 10000
 ```
 
-### 4. Run Objective 2 — Clinical NER + Transformer Pipeline
-The NER pipeline runs via the FastAPI server:
-```bash
-# Start the backend API
-uvicorn app:app --reload --port 8000
-```
+Install frontend dependencies:
 
-API endpoint: `POST /analyze`  
-Payload: `{ "text": "<medical report text>" }`  
-Returns: `{ "lstm_summary": "...", "bart_summary": "...", "entities": { "disease": [...], "drug": [...], "symptom": [...] } }`
-
-### 5. Run the Frontend (Chat UI)
 ```bash
 cd ../frontend
 npm install
+```
+
+For development:
+
+```bash
 npm run dev
 ```
-Visit: `http://localhost:3000`
 
----
+For a production-style local run:
 
-## 🧪 Evaluation Metrics
+```bash
+npm run build
+npm run start
+```
 
-See **Results Summary** below. All metrics computed using `rouge-score` library on CNN/DailyMail test set.
+Open:
 
----
+```text
+http://127.0.0.1:3000
+```
 
-## 📊 Results Summary
+The frontend talks to:
 
-| Model | ROUGE-1 | ROUGE-2 | ROUGE-L |
-|-------|---------|---------|---------|
-| LSTM (no attention) | — | — | ~0.082 |
-| LSTM + Attention | — | — | ~0.095 |
-| Flan-T5-Large | ~0.38 | ~0.17 | ~0.35 |
-| BART-Large-CNN | ~0.44 | ~0.21 | ~0.41 |
+```text
+http://127.0.0.1:10000
+```
 
-> Note: LSTM models report only ROUGE-L (as implemented in `lstm_summarization.py`). Run `compare_models.py` to generate live values.
+## API
 
----
+### Health Check
 
-## 🤖 Models Used
+```http
+GET /
+```
 
-| Model | HuggingFace ID | Purpose |
-|-------|----------------|---------|
-| Flan-T5-Large | `google/flan-t5-large` | Transformer summarization (production pipeline) |
-| BART-Large-CNN | `facebook/bart-large-cnn` | Evaluation baseline |
-| Custom LSTM | Built from scratch | Sequence-to-sequence baseline |
+Returns:
 
----
+```json
+{
+  "message": "Medical AI API (fast text version) running"
+}
+```
 
-## 📜 License
+### Analyze Text
 
-MIT License — open for academic and research use.
+```http
+POST /analyze
+Content-Type: application/x-www-form-urlencoded
+
+text=Patient has fever, fatigue and is on aspirin and metformin.
+```
+
+### Analyze Image
+
+```http
+POST /analyze
+Content-Type: multipart/form-data
+
+file=<medical_report_image.png>
+```
+
+Supported image formats:
+
+```text
+.png, .jpg, .jpeg, .bmp, .tif, .tiff
+```
+
+### Response Format
+
+```json
+{
+  "clinical_summary": "Patient has fever fatigue and is on aspirin and metformin.",
+  "entities": {
+    "disease": [],
+    "drug": ["metformin", "aspirin"],
+    "symptom": ["fever", "fatigue"],
+    "treatment": []
+  },
+  "confidence": 1.0,
+  "disclaimer": "AI-generated summary. Not a medical diagnosis."
+}
+```
+
+Errors are returned in the same shape with an `error` field:
+
+```json
+{
+  "clinical_summary": "",
+  "entities": {
+    "disease": [],
+    "drug": [],
+    "symptom": [],
+    "treatment": []
+  },
+  "confidence": 0,
+  "error": "No readable text provided",
+  "disclaimer": "AI-generated summary. Not a medical diagnosis."
+}
+```
+
+### History
+
+```http
+GET /history
+DELETE /history/clear
+```
+
+## Attention Mechanism
+
+`backend/lstm_summarization.py` includes two sequence-to-sequence models:
+
+- LSTM without attention
+- LSTM with dot-product attention over encoder time steps
+
+The attention decoder now receives padded encoder outputs plus a source mask, so it attends only over valid input tokens instead of padded positions. The same attention path is used for:
+
+- training
+- summary generation
+- ROUGE evaluation
+- `lstm_inference.py`
+
+Run the LSTM experiments:
+
+```bash
+cd backend
+python lstm_summarization.py
+```
+
+Run the full comparison:
+
+```bash
+python compare_models.py
+```
+
+These scripts download CNN/DailyMail from Hugging Face when run.
+
+## Accuracy and Evaluation
+
+Summarization quality is evaluated with ROUGE:
+
+- ROUGE-1
+- ROUGE-2
+- ROUGE-L
+
+The project includes:
+
+```bash
+python lstm_summarization.py
+python bart_evaluation.py
+python compare_models.py
+```
+
+Expected trend:
+
+| Model | Expected Behavior |
+| --- | --- |
+| LSTM without attention | Baseline sequence-to-sequence model |
+| LSTM + Attention | Should improve over the plain LSTM by focusing on relevant source tokens |
+| BART-Large-CNN | Strong transformer summarization baseline |
+| DistilBART pipeline | Fast app-time summary generation |
+
+Note: exact ROUGE scores depend on machine, dataset cache, training time, random seed, and GPU availability.
+
+## Verified Local Checks
+
+The following checks were run locally:
+
+- Frontend build succeeds with `npm run build`.
+- Frontend serves successfully at `http://127.0.0.1:3000`.
+- Backend health route responds at `http://127.0.0.1:10000`.
+- Text input returns summary and entities.
+- Empty input returns a friendly error.
+- Unsupported file upload returns a friendly file-type error.
+- PNG image upload is OCR'd and analyzed.
+- LSTM + Attention shape test confirms encoder outputs, masks, decoder logits, and generation path work together.
+
+Example text test:
+
+```text
+Diabetes patient has fatigue and uses metformin.
+```
+
+Expected extracted entities:
+
+```json
+{
+  "disease": ["diabetes"],
+  "drug": ["metformin"],
+  "symptom": ["fatigue"],
+  "treatment": []
+}
+```
+
+Example image OCR test:
+
+```text
+Patient has fever cough and takes aspirin.
+```
+
+Expected extracted entities:
+
+```json
+{
+  "disease": [],
+  "drug": ["aspirin"],
+  "symptom": ["cough", "fever"],
+  "treatment": []
+}
+```
+
+## Important Notes
+
+- This app is for educational and research use.
+- The generated output is not a diagnosis.
+- Rule-based NER is intentionally simple and should be expanded with a clinical NER model for production accuracy.
+- Image OCR accuracy depends on image quality, resolution, handwriting/printing style, and Tesseract installation.
+
+## License
+
+MIT License for academic and research use.
