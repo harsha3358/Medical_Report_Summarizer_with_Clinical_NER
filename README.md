@@ -153,6 +153,16 @@ The following checks were completed locally:
 - The attention model path was tested with a small shape test.
 - The frontend and backend response formats now match.
 
+## Live Links
+
+| Service | Link |
+| --- | --- |
+| Frontend on Vercel | https://frontend-khaki-five-70.vercel.app |
+| Vercel deployment URL | https://frontend-64hdr1rdq-harsha3358s-projects.vercel.app |
+| Render backend deploy link | https://render.com/deploy?repo=https://github.com/harsha3358/Medical_Report_Summarizer_with_Clinical_NER |
+
+Important: the frontend is already deployed on Vercel. The Render link opens Render's deploy page for this repository. After the Render backend service is created, Render will give a live backend URL. That backend URL should be added to Vercel as `NEXT_PUBLIC_API_URL`, then the frontend should be redeployed so the live app talks to the live backend instead of a local backend.
+
 ## Deployment
 
 This repository now includes files that make cloud deployment easier:
@@ -178,12 +188,12 @@ NEXT_PUBLIC_API_URL=<your Render backend URL>
 
 Then redeploy the Vercel frontend.
 
-Live deployment links should be added here after both services are created:
+Current deployment links:
 
 | Service | Link |
 | --- | --- |
-| Frontend | Add Vercel link here |
-| Backend | Add Render link here |
+| Frontend on Vercel | https://frontend-khaki-five-70.vercel.app |
+| Render backend setup | https://render.com/deploy?repo=https://github.com/harsha3358/Medical_Report_Summarizer_with_Clinical_NER |
 
 ## Project Folder Guide
 
@@ -257,7 +267,7 @@ Useful improvements would include:
 - Better support for PDF reports.
 - Better handling of handwritten reports.
 - More clinical terms in the entity extraction system.
-- Full cloud deployment with final Vercel and Render links.
+- Final Render backend URL after the backend service is created.
 - Authentication and privacy controls for real-world use.
 
 ## License
