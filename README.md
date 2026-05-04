@@ -104,6 +104,32 @@ sshleifer/distilbart-cnn-12-6
 
 This model is used because it is faster and lighter than very large transformer models, which makes it more practical for a working web app.
 
+### Disease And Medical Term Detection
+
+The app does not need full sentences to detect many common diseases. It first checks the text with a dictionary-style medical term detector. This means short inputs such as these can work:
+
+```text
+HIV
+AIDS
+malaria
+diabetes asthma covid
+tb pneumonia bronchitis
+```
+
+The detector supports common disease names, abbreviations, symptoms, medicines, and treatments. It also has an optional biomedical NER model:
+
+```text
+d4data/biomedical-ner-all
+```
+
+That model can be enabled with:
+
+```text
+MEDAI_ENABLE_BIOMED_NER=1
+```
+
+The optional model can recognize a wider range of biomedical terms, but it is larger and may make the first request slower because the model has to load.
+
 ### 2. Academic Model Comparison
 
 The project also includes experiment scripts to compare:
@@ -239,7 +265,7 @@ Always consult a qualified medical professional for diagnosis, treatment, or urg
 
 - OCR may fail if the image is blurry, handwritten, tilted, or low resolution.
 - The clinical entity extraction is rule-based and limited.
-- The system may miss medical terms that are not included in its rules.
+- The system may miss rare disease names unless the optional biomedical NER model is enabled.
 - Summaries should be reviewed by a human.
 - Full model training can take time and may need a good GPU.
 
