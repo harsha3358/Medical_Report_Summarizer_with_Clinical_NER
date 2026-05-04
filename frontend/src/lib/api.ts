@@ -21,9 +21,13 @@ export async function analyzeFile(file: File): Promise<AnalyzeResponse> {
 export async function getHistory(): Promise<HistoryItem[]> {
   const res = await fetch(`${API_URL}/history`);
   if (!res.ok) throw new Error("Failed to fetch history");
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.value)) return data.value;
+  return [];
 }
 
 export async function clearHistory(): Promise<void> {
-  await fetch(`${API_URL}/history/clear`, { method: "DELETE" });
+  const res = await fetch(`${API_URL}/history/clear`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to clear history");
 }

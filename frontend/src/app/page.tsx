@@ -11,6 +11,7 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   const addMessage = (msg: ChatMessage) => {
     setMessages((prev) => [...prev, msg]);
@@ -39,6 +40,7 @@ export default function Home() {
       const result = file
         ? await analyzeFile(file)
         : await analyzeText(text);
+      setHistoryRefreshKey((key) => key + 1);
 
       // Remove loading, add result
       setMessages((prev) => {
@@ -102,6 +104,7 @@ export default function Home() {
         onSelectHistory={handleHistorySelect}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((v) => !v)}
+        refreshKey={historyRefreshKey}
       />
 
       {/* Main chat area */}

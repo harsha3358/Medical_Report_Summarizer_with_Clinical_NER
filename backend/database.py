@@ -1,11 +1,13 @@
 import sqlite3
 import json
 from datetime import datetime
+from pathlib import Path
 
 # -------------------------------
 # CONNECTION
 # -------------------------------
-conn = sqlite3.connect("db.sqlite", check_same_thread=False)
+DB_PATH = Path(__file__).with_name("db.sqlite")
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
 
 # -------------------------------

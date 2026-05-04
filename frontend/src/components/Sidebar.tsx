@@ -9,34 +9,42 @@ export default function Sidebar({
   onSelectHistory,
   collapsed,
   onToggle,
+  refreshKey,
 }: {
   onSelectHistory: (item: HistoryItem) => void;
   collapsed: boolean;
   onToggle: () => void;
+  refreshKey: number;
 }) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const fetchHistory = async () => {
     setLoading(true);
+    setError("");
     try {
       const data = await getHistory();
       setHistory(data);
     } catch {
-      // silently fail if backend not running
+      setError("History unavailable");
     }
     setLoading(false);
   };
 
   useEffect(() => {
     fetchHistory();
-  }, []);
+  }, [refreshKey]);
 
   const handleClear = async () => {
     if (!confirm("Clear all history?")) return;
-    await clearHistory();
-    setHistory([]);
+    try {
+      await clearHistory();
+      setHistory([]);
+    } catch {
+      setError("Could not clear history");
+    }
   };
 
   const filtered = history.filter(
@@ -128,7 +136,12 @@ export default function Sidebar({
                 Loading...
               </p>
             )}
-            {!loading && filtered.length === 0 && (
+            {!loading && error && (
+              <p className="text-xs text-rose-400 text-center py-4">
+                {error}
+              </p>
+            )}
+            {!loading && !error && filtered.length === 0 && (
               <p className="text-xs text-slate-400 text-center py-8">
                 {history.length === 0 ? "No history yet" : "No results"}
               </p>

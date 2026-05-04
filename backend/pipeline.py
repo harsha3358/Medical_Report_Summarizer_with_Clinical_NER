@@ -29,6 +29,10 @@ def warm_up_models():
 # -------------------------------
 # ENTITY EXTRACTION (FAST RULES)
 # -------------------------------
+def contains_any(text, phrases):
+    return any(phrase in text for phrase in phrases)
+
+
 def extract_entities(text):
     t = text.lower()
 
@@ -51,9 +55,22 @@ def extract_entities(text):
     if "copd" in t:
         entities["disease"].append("copd")
 
-    for s in ["fever", "cough", "nausea", "fatigue", "chest pain", "shortness of breath"]:
-        if s in t:
-            entities["symptom"].append(s)
+    symptom_rules = {
+        "fever": ["fever", "high temperature"],
+        "cough": ["cough"],
+        "nausea": ["nausea", "vomiting"],
+        "fatigue": ["fatigue", "tiredness", "weakness"],
+        "chest pain": ["chest pain"],
+        "shortness of breath": ["shortness of breath", "breathlessness"],
+        "skin rash": ["skin rash", "skin rashes", "rash", "rashes"],
+        "itching": ["itching", "itchy skin", "pruritus"],
+        "redness": ["redness", "red skin"],
+        "swelling": ["swelling", "swollen"],
+    }
+
+    for symptom, phrases in symptom_rules.items():
+        if contains_any(t, phrases):
+            entities["symptom"].append(symptom)
 
     for d in ["aspirin", "ibuprofen", "paracetamol", "ondansetron", "metformin", "tiotropium"]:
         if d in t:
@@ -107,7 +124,7 @@ def confidence_score(text, entities):
         len(entities["treatment"]) * 0.1
     )
 
-    if score == 0 and any(k in text for k in ["fever", "cough", "glucose"]):
+    if score == 0 and any(k in text.lower() for k in ["fever", "cough", "glucose", "rash", "rashes", "itching"]):
         return 0.4
 
     return round(min(score, 1.0), 2)
